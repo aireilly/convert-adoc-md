@@ -1,0 +1,50 @@
+site_name: AsciiDoc2Markdown POC
+theme:
+  name: material
+  palette:
+    # Light mode
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: black
+      accent: blue
+      toggle:
+        icon: material/toggle-switch-off-outline
+        name: Switch to dark mode
+    # Dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: black
+      accent: blue
+      toggle:
+        icon: material/toggle-switch
+        name: Switch to light mode
+  plugins:
+      - search
+      - img2fig
+  icon:
+    repo: fontawesome/brands/git-alt
+  logo: assets/images/redhat.svg
+  favicon: assets/redhat-favicon.png
+  features:
+    - toc.follow
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.tabs.sticky
+    - navigation.sections
+    - navigation.top
+    - content.code.annotate
+
+repo_url: https://github.com/aireilly/convert-adoc-md
+
+repo_name: convert-adoc-md
+
+plugins:
+  - search
+  - callouts
+
+markdown_extensions:
+  - admonition
+  - def_list
+  - pymdownx.details
+  - pymdownx.superfences

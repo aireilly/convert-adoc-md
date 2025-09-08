@@ -1,0 +1,54 @@
+= Test Callouts
+
+Learn about NUMA-aware scheduling and how you can use it to deploy high performance workloads in an {product-title} cluster.
+
+[source,yaml]
+----
+some
+  yaml # <1>
+    here: be
+----
+<1> crai
+
+Yes.
+
+Ok, now what about in an ol?
+
+. Do this:
++
+[source,yaml]
+----
+some
+  yaml # <1>
+    here: be # <2>
+----
+<1> crai23
+<2> crai34 hi
+
+. Stuff. yes lots of stuff!
+
+.. And then do this:
++
+[source,terminal]
+----
+$ crai # <1>
+----
+<1> foo foo foo
+
+[NOTE]
+====
+This is a WIP project playing with moving adoc to md.
+====
+
+[source,yaml,subs="attributes+"]
+----
+apiVersion: nodetopology.openshift.io/v1
+kind: NUMAResourcesScheduler
+metadata:
+  name: numaresourcesscheduler
+spec:
+  imageSpec: "registry.redhat.io/openshift4/noderesourcetopology-scheduler-rhel9:v{product-version}" # <1>
+----
+<1> In a disconnected environment, make sure to configure the resolution of this image by either:
+* Creating an `ImageTagMirrorSet` custom resource (CR).
+* Setting the URL to the disconnected registry.
