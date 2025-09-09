@@ -1,6 +1,11 @@
 = Test Callouts
 
-Learn about NUMA-aware scheduling and how you can use it to deploy high performance workloads in an {product-title} cluster.
+Learn about NUMA-aware scheduling and how you can use it to deploy high performance workloads in a cluster.
+
+[NOTE]
+====
+This is tricky!
+====
 
 [source,yaml]
 ----
@@ -18,37 +23,74 @@ Ok, now what about in an ol?
 +
 [source,yaml]
 ----
-some
-  yaml # <1>
-    here: be # <2>
+apiVersion: machineconfiguration.openshift.io/v1
+kind: KubeletConfig # <1>
+metadata:
+  name: worker-tuning
+spec: # <2>
+  machineConfigPoolSelector:
+    matchLabels:
+      pools.operator.machineconfiguration.openshift.io/worker: ""
+  kubeletConfig:
+    cpuManagerPolicy: "static"
+    cpuManagerReconcilePeriod: "5s" # <3>
+    reservedSystemCPUs: "0,1"
+    memoryManagerPolicy: "Static"
+    evictionHard:
+      memory.available: "100Mi" # <4>
+    kubeReserved:
+      memory: "512Mi"
+    reservedMemory:
+      - numaNode: 0
+        limits:
+          memory: "1124Mi" # <5>
+    systemReserved:
+      memory: "512Mi"
+    topologyManagerPolicy: "single-numa-node"
 ----
 <1> crai23
 <2> crai34 hi
+<3> geeep
+<4> deeep
+<5> poop
 
 . Stuff. yes lots of stuff!
 
 .. And then do this:
+
+... Go deep.
+
+... And deeper again:
 +
-[source,terminal]
+[source,yaml]
 ----
-$ crai # <1>
+more
+  yaml # <1>
+    more: yaml # <2>
 ----
 <1> foo foo foo
+<2> boop
 
 [NOTE]
 ====
 This is a WIP project playing with moving adoc to md.
 ====
 
-[source,yaml,subs="attributes+"]
+[source,yaml]
 ----
 apiVersion: nodetopology.openshift.io/v1
 kind: NUMAResourcesScheduler
 metadata:
-  name: numaresourcesscheduler
+  name: numaresourcesscheduler # <1>
 spec:
-  imageSpec: "registry.redhat.io/openshift4/noderesourcetopology-scheduler-rhel9:v{product-version}" # <1>
+  imageSpec: "registry.redhat.io/openshift4/noderesourcetopology-scheduler-rhel9:v2"
 ----
 <1> In a disconnected environment, make sure to configure the resolution of this image by either:
 * Creating an `ImageTagMirrorSet` custom resource (CR).
 * Setting the URL to the disconnected registry.
+
+[source,terminal]
+----
+$ here's a codeblock! # <1>
+----
+<1> pew pew pew

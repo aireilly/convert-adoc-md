@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<?asciidoc-toc?>
+<?asciidoc-numbered?>
+<article xmlns="http://docbook.org/ns/docbook" xmlns:xl="http://www.w3.org/1999/xlink" version="5.0" xml:lang="en">
+<info>
+<title>Test Callouts</title>
+<date>2025-09-09</date>
+</info>
+<simpara>Learn about NUMA-aware scheduling and how you can use it to deploy high performance workloads in a cluster.</simpara>
+<programlisting language="yaml" linenumbering="unnumbered">some
+  yaml <co xml:id="CO1-1"/>
+    here: be</programlisting>
+<calloutlist>
+<callout arearefs="CO1-1">
+<para>crai</para>
+</callout>
+</calloutlist>
+<simpara>Yes.</simpara>
+<simpara>Ok, now what about in an ol?</simpara>
+<orderedlist numeration="arabic">
+<listitem>
+<simpara>Do this:</simpara>
+<programlisting language="yaml" linenumbering="unnumbered">apiVersion: machineconfiguration.openshift.io/v1
+kind: KubeletConfig <co xml:id="CO2-1"/>
+metadata:
+  name: worker-tuning
+spec: <co xml:id="CO2-2"/>
+  machineConfigPoolSelector:
+    matchLabels:
+      pools.operator.machineconfiguration.openshift.io/worker: ""
+  kubeletConfig:
+    cpuManagerPolicy: "static"
+    cpuManagerReconcilePeriod: "5s" <co xml:id="CO2-3"/>
+    reservedSystemCPUs: "0,1"
+    memoryManagerPolicy: "Static"
+    evictionHard:
+      memory.available: "100Mi" <co xml:id="CO2-4"/>
+    kubeReserved:
+      memory: "512Mi"
+    reservedMemory:
+      - numaNode: 0
+        limits:
+          memory: "1124Mi" <co xml:id="CO2-5"/>
+    systemReserved:
+      memory: "512Mi"
+    topologyManagerPolicy: "single-numa-node"</programlisting>
+<calloutlist>
+<callout arearefs="CO2-1">
+<para>crai23</para>
+</callout>
+<callout arearefs="CO2-2">
+<para>crai34 hi</para>
+</callout>
+<callout arearefs="CO2-3">
+<para>geeep</para>
+</callout>
+<callout arearefs="CO2-4">
+<para>deeep</para>
+</callout>
+<callout arearefs="CO2-5">
+<para>poop</para>
+</callout>
+</calloutlist>
+</listitem>
+<listitem>
+<simpara>Stuff. yes lots of stuff!</simpara>
+<orderedlist numeration="loweralpha">
+<listitem>
+<simpara>And then do this:</simpara>
+<orderedlist numeration="lowerroman">
+<listitem>
+<simpara>Go deep.</simpara>
+</listitem>
+<listitem>
+<simpara>And deeper again:</simpara>
+<programlisting language="yaml" linenumbering="unnumbered">more
+  yaml <co xml:id="CO3-1"/>
+    more: yaml <co xml:id="CO3-2"/></programlisting>
+<calloutlist>
+<callout arearefs="CO3-1">
+<para>foo foo foo</para>
+</callout>
+<callout arearefs="CO3-2">
+<para>boop</para>
+</callout>
+</calloutlist>
+</listitem>
+</orderedlist>
+</listitem>
+</orderedlist>
+</listitem>
+</orderedlist>
+<note>
+<simpara>This is a WIP project playing with moving adoc to md.</simpara>
+</note>
+<programlisting language="yaml" linenumbering="unnumbered">apiVersion: nodetopology.openshift.io/v1
+kind: NUMAResourcesScheduler
+metadata:
+  name: numaresourcesscheduler <co xml:id="CO4-1"/>
+spec:
+  imageSpec: "registry.redhat.io/openshift4/noderesourcetopology-scheduler-rhel9:v2"</programlisting>
+<calloutlist>
+<callout arearefs="CO4-1">
+<para>In a disconnected environment, make sure to configure the resolution of this image by either:</para>
+<itemizedlist>
+<listitem>
+<simpara>Creating an <literal>ImageTagMirrorSet</literal> custom resource (CR).</simpara>
+</listitem>
+<listitem>
+<simpara>Setting the URL to the disconnected registry.</simpara>
+</listitem>
+</itemizedlist>
+</callout>
+</calloutlist>
+</article>

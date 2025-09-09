@@ -47,30 +47,36 @@ Generate Docbook:
 asciidoctor -b docbook -a product-title=OpenShift -a product-version=4.18 -a data-uri! test/cnf-numa-aware-scheduling.adoc -o test/cnf-numa-aware-scheduling.xml
 ```
 
-Generate markdown with `pandoc`:
+Generate docbook
 
 ```cmd
-pandoc --wrap=none -f docbook -i test/cnf-numa-aware-scheduling.xml \
--t gfm+footnotes+implicit_figures+footnotes+definition_lists \
---lua-filter=figures.lua \
---lua-filter=title.lua \
---lua-filter=tables.lua \
---lua-filter=callouts.lua \
-> docs/cnf-numa-aware-scheduling.md
+$ asciidoctor -b docbook -a product-title=OpenShift -a product-version=4.18 -a data-uri! -o callouts.xml test/callouts.adoc
 ```
-    
+
+Generate Pandoc AST from docbook XML:
+
+```cmd
+pandoc docs/callouts.xml -f docbook -t xml > docs/ast.xml
+```
+
+## Prepare AsciiDoc and then process with Pandoc
+
 All in one:
 
 ```cmd
-asciidoctor -b docbook -a product-title=OpenShift -a product-version=4.18 -a data-uri! \
--o - test/cnf-numa-aware-scheduling.adoc | \
-pandoc --wrap=none -f docbook - -t gfm+footnotes+implicit_figures+footnotes+definition_lists \
---lua-filter=figures.lua \
---lua-filter=title.lua \
---lua-filter=tables.lua \
---lua-filter=callouts.lua \
-> docs/cnf-numa-aware-scheduling.md
+asciidoctor -r ./prepare.rb -b docbook5 -o - test/callouts.adoc \
+| pandoc --wrap=none -f docbook - -t gfm+footnotes+implicit_figures+footnotes+definition_lists \
+  --lua-filter=figures.lua \
+  --lua-filter=title.lua \
+  --lua-filter=tables.lua \
+  --lua-filter=callouts.lua \
+  > docs/out.md
 ```
+
+## AsciiDoc rework before conversion
+
+- prepare.rb
+
 
 ## TODO
 
@@ -83,7 +89,3 @@ pandoc --wrap=none -f docbook - -t gfm+footnotes+implicit_figures+footnotes+defi
 - Highlight broken or missing content in the conversion
 - Create opinionated `mkdocs.yml` config
 - Create an opinionated md frontmatter set up
-
-## AsciiDoc rework before conversion
-
-- ???

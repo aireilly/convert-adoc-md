@@ -1,176 +1,106 @@
 -- callouts.lua
--- DocBook <programlisting> with inline <co .../> markers + following <calloutlist>
--- → insert callout text as *preceding* comment lines inside the code block.
--- Multiline callouts (paras, bullet lists) are preserved.
--- No numbering; supports literal and HTML-escaped <co/>.
+-- Requires preprocessing with asciidoctor -r ./prepare.rb
+-- For any CodeBlock immediately followed by a BulletList:
+-- - replaces lines like "  # pre-1" with "  # <bullet text>"
+-- - using bullets in order (1-based), preserving original indentation
 
-local stringify = pandoc.utils.stringify
+local stringify = (require "pandoc.utils").stringify
 
--- Comment prefix by language (all comments are inserted on their own lines)
-local comment_prefix = {
-  yaml   = "# ",  yml   = "# ",  toml  = "# ",  ini   = "; ", conf  = "# ",
-  sh     = "# ",  bash  = "# ",  zsh   = "# ",  fish  = "# ",  make  = "# ",
-  py     = "# ",  rb    = "# ",  r     = "# ",  ps1   = "# ",  docker= "# ",
-  js     = "// ", ts    = "// ", c     = "// ",  cpp   = "// ", go    = "// ",
-  rust   = "// ", php   = "// ", lua   = "-- ", sql   = "-- ",
-  erl    = "% ",  elixir= "# ",  clj   = ";; ", lisp  = ";; ", scheme= ";; ",
-  tex    = "%% ",
-  html   = "<!-- ", xml  = "<!-- ",
-}
-
-local function prefix_for(lang) return comment_prefix[(lang or ""):lower()] or "# " end
-local function is_block_comment(lang)
-  lang = (lang or ""):lower()
-  return (lang == "html" or lang == "xml")
-end
-
--- ---------- helpers
-
-local function split_lines(s)
+-- Replace "# pre-N" lines with "# <bullet[N]>" (preserves indent).
+local function apply_bullets_to_code(code, bullets)
   local out = {}
-  s = (s or ""):gsub("\r\n", "\n")
-  for line in (s.."\n"):gmatch("([^\n]*)\n") do out[#out+1] = line end
-  return out
-end
-
-local function blocks_to_lines(blocks)
-  local lines = {}
-  local function add_text(txt)
-    for _, l in ipairs(split_lines(txt)) do lines[#lines+1] = l end
-  end
-
-  for _, bl in ipairs(blocks) do
-    if bl.t == "BulletList" then
-      for _, itemBlocks in ipairs(bl.content) do
-        -- render each list item as "- ..." with wrapped lines indented
-        local txt = stringify(pandoc.Div(itemBlocks))
-        local ls = split_lines(txt)
-        for i, l in ipairs(ls) do
-          if l ~= "" then
-            lines[#lines+1] = (i == 1) and ("- " .. l) or ("  " .. l)
-          end
-        end
-      end
-    elseif bl.t == "OrderedList" then
-      local _, items = table.unpack(bl.content)
-      local n = 1
-      for _, itemBlocks in ipairs(items) do
-        local txt = stringify(pandoc.Div(itemBlocks))
-        local ls = split_lines(txt)
-        for i, l in ipairs(ls) do
-          if l ~= "" then
-            lines[#lines+1] = (i == 1) and (tostring(n) .. ". " .. l) or ("   " .. l)
-          end
-        end
-        n = n + 1
-      end
-    elseif bl.t == "CodeBlock" then
-      add_text(bl.text)
-    else
-      add_text(stringify(bl))
-    end
-  end
-  return lines
-end
-
-local function collect_callouts(listBlock)
-  local texts = {}
-  if listBlock.t == "BulletList" then
-    for _, itemBlocks in ipairs(listBlock.content) do
-      texts[#texts+1] = blocks_to_lines(itemBlocks)
-    end
-  elseif listBlock.t == "OrderedList" then
-    local _, items = table.unpack(listBlock.content)
-    for _, itemBlocks in ipairs(items) do
-      texts[#texts+1] = blocks_to_lines(itemBlocks)
-    end
-  end
-  return texts
-end
-
--- Strip one <co .../> or &lt;co .../&gt; from a line
-local function strip_one_marker(line)
-  local s,e = line:find("<%s*co%s+[^/>]-%s*/%s*>")
-  if s then return line:sub(1,s-1)..line:sub(e+1), true end
-  s,e = line:find("&lt;%s*co[^&]-/%s*&gt;")
-  if s then return line:sub(1,s-1)..line:sub(e+1), true end
-  return line, false
-end
-
--- ---------- core
-
-local function apply_markers(code, callouts, lang)
-  local lines = split_lines(code)
-  local pfx = prefix_for(lang)
-  local blockc = is_block_comment(lang)
-  local idx, total_hits = 1, 0
-
-  for i = 1, #lines do
-    local original = lines[i]
-    local line, hits = original, 0
-    while true do
-      local new, found = strip_one_marker(line)
-      if not found then break end
-      line, hits = new, hits + 1
-    end
-    if hits > 0 then
-      total_hits = total_hits + hits
-      -- determine indentation from the target line
-      local indent = original:match("^%s*") or ""
-      -- insert one callout (possibly multiline) per hit, above target
-      for _ = 1, hits do
-        local clines = callouts[idx] or {""}
-        if blockc then
-          -- HTML/XML block comment wrapper
-          table.insert(lines, i, indent .. "<!-- " .. (table.concat(clines, "\n" .. indent)) .. " -->")
-        else
-          for k = #clines, 1, -1 do
-            table.insert(lines, i, indent .. pfx .. clines[k])
-          end
-        end
-        idx = idx + 1
-      end
-      lines[i + hits] = line -- shift the cleaned target line below the inserted comments
-      i = i + hits
-    else
-      lines[i] = original
-    end
-  end
-
-  -- Fallback: no markers, exactly one callout → put it above the last non-empty line
-  if total_hits == 0 and #callouts == 1 then
-    local last = #lines
-    while last > 0 and lines[last]:match("^%s*$") do last = last - 1 end
-    local indent = (last > 0 and (lines[last]:match("^%s*") or "")) or ""
-    local clines = callouts[1]
-    if blockc then
-      table.insert(lines, math.max(last,1), indent .. "<!-- " .. (table.concat(clines, "\n" .. indent)) .. " -->")
-    else
-      for k = #clines, 1, -1 do
-        table.insert(lines, math.max(last,1), indent .. pfx .. clines[k])
-      end
-    end
-  end
-
-  return table.concat(lines, "\n")
-end
-
-return {
-  Pandoc = function(doc)
-    local bs, out, i = doc.blocks, {}, 1
-    while i <= #bs do
-      local b, nxt = bs[i], bs[i+1]
-      if b.t == "CodeBlock" and nxt and (nxt.t == "BulletList" or nxt.t == "OrderedList") then
-        local callouts = collect_callouts(nxt)  -- array of {lines}
-        local lang = (b.attr and b.attr.classes and b.attr.classes[1]) or nil
-        local updated = apply_markers(b.text or "", callouts, lang)
-        out[#out+1] = pandoc.CodeBlock(updated, b.attr)
-        i = i + 2 -- drop the callout list
+  for line in (code .. "\n"):gmatch("([^\n]*)\n") do
+    local indent, n = line:match("^([ \t]*)#%s*pre%-(%d+)%s*$")
+    if indent and n then
+      local idx = tonumber(n)
+      local txt = bullets[idx]
+      if txt and txt ~= "" then
+        table.insert(out, indent .. "# " .. txt)
       else
-        out[#out+1] = b
-        i = i + 1
+        -- No corresponding bullet; keep original placeholder
+        table.insert(out, line)
+      end
+    else
+      table.insert(out, line)
+    end
+  end
+  return table.concat(out, "\n")
+end
+
+-- Extract plain text for each bullet list item.
+local function bullets_from_list(bl)
+  local bullets = {}
+  for _, itemBlocks in ipairs(bl.content) do
+    -- itemBlocks is a list of Blocks; stringify a Div wrapper to flatten
+    local txt = stringify(pandoc.Div(itemBlocks))
+    txt = (txt:gsub("%s+$",""))
+    table.insert(bullets, txt)
+  end
+  return bullets
+end
+
+-- Process a list of Blocks in-place, handling CodeBlock + following BulletList pairs.
+local function process_blocks(blocks)
+  local i = 1
+  while i <= #blocks do
+    local b = blocks[i]
+
+    -- Recurse into containers first (so nested pairs are handled)
+    if b.t == "Div" or b.t == "BlockQuote" then
+      process_blocks(b.content)
+    elseif b.t == "OrderedList" or b.t == "BulletList" then
+      for _, item in ipairs(b.content) do
+        process_blocks(item)
+      end
+    elseif b.t == "DefinitionList" then
+      for _, def in ipairs(b.content) do
+        -- def = { termInlines, listOfBlockLists }
+        for _, blklist in ipairs(def[2]) do
+          process_blocks(blklist)
+        end
+      end
+    elseif b.t == "Table" then
+      -- Traverse table cells
+      local tbl = b
+      if tbl.bodies then
+        for _, body in ipairs(tbl.bodies) do
+          for _, row in ipairs(body.body) do
+            for _, cell in ipairs(row) do
+              process_blocks(cell.contents)
+            end
+          end
+        end
+      end
+      if tbl.foot then
+        for _, row in ipairs(tbl.foot) do
+          for _, cell in ipairs(row) do
+            process_blocks(cell.contents)
+          end
+        end
+      end
+      if tbl.head then
+        for _, row in ipairs(tbl.head) do
+          for _, cell in ipairs(row) do
+            process_blocks(cell.contents)
+          end
+        end
       end
     end
-    return pandoc.Pandoc(out, doc.meta)
+
+    -- If a CodeBlock is immediately followed by a BulletList, merge.
+    if b.t == "CodeBlock" and blocks[i + 1] and blocks[i + 1].t == "BulletList" then
+      local bullets = bullets_from_list(blocks[i + 1])
+      b.text = apply_bullets_to_code(b.text, bullets)
+      -- Remove the BulletList we just consumed
+      table.remove(blocks, i + 1)
+      -- Keep i at this CodeBlock to allow back-to-back merges if needed
+    else
+      i = i + 1
+    end
   end
-}
+end
+
+function Pandoc(doc)
+  process_blocks(doc.blocks)
+  return doc
+end
